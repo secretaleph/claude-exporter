@@ -157,7 +157,7 @@ def export(
                     total_attachments += len(downloaded)
 
                     # Extract artifacts
-                    artifacts = attachment_handler.extract_artifacts(msg, msg.index)
+                    artifacts = attachment_handler.extract_artifacts(msg, msg.index, conversation_id)
                     total_artifacts += len(artifacts)
 
                 if total_attachments > 0:

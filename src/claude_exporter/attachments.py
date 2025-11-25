@@ -88,7 +88,12 @@ class AttachmentHandler:
         file_path.write_bytes(content)
         return file_path
 
-    def extract_artifacts(self, message: Message, message_index: int) -> dict[str, Path]:
+    def extract_artifacts(
+        self,
+        message: Message,
+        message_index: int,
+        conversation_id: str
+    ) -> dict[str, Path]:
         """
         Extract code artifacts from message text.
 
@@ -97,11 +102,14 @@ class AttachmentHandler:
         Args:
             message: Message to extract artifacts from
             message_index: Index of message for naming
+            conversation_id: Conversation ID for organizing artifacts
 
         Returns:
             Dictionary mapping artifact name to file path
         """
-        self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+        # Create conversation-specific artifacts directory
+        conversation_artifacts_dir = self.artifacts_dir / conversation_id
+        conversation_artifacts_dir.mkdir(parents=True, exist_ok=True)
 
         artifacts = {}
         text = message.text
@@ -122,7 +130,7 @@ class AttachmentHandler:
                 # Generate filename
                 ext = self._get_extension_for_language(language)
                 filename = f"message_{message_index}_artifact_{idx + 1}.{ext}"
-                file_path = self.artifacts_dir / filename
+                file_path = conversation_artifacts_dir / filename
 
                 file_path.write_text(code)
                 artifacts[filename] = file_path
