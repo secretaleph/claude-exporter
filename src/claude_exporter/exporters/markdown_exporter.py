@@ -55,9 +55,9 @@ class MarkdownExporter:
             lines.append(f"## Branch Overview\n")
             lines.append(f"This conversation has **{num_branches} branches**.\n")
 
-            # Build and extract branches for summary
+            # Build and extract branches for summary (pass tree to avoid rebuilding)
             tree_builder = TreeBuilder(tree.conversation)
-            branches = tree_builder.extract_branch_objects()
+            branches = tree_builder.extract_branch_objects(tree)
 
             for branch in branches:
                 marker = "🌟 **Main**" if branch.is_main else f"🌿 Branch {branch.branch_id}"
@@ -169,9 +169,9 @@ class MarkdownSplitExporter:
         """
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Build branches
+        # Build branches (pass the existing tree to avoid rebuilding)
         tree_builder = TreeBuilder(tree.conversation)
-        branches = tree_builder.extract_branch_objects()
+        branches = tree_builder.extract_branch_objects(tree)
 
         created_files = []
 

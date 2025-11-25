@@ -155,14 +155,19 @@ class TreeBuilder:
         traverse(root, [])
         return branches
 
-    def extract_branch_objects(self) -> list[Branch]:
+    def extract_branch_objects(self, tree: ConversationTree | None = None) -> list[Branch]:
         """
         Extract all branches as Branch objects with metadata.
+
+        Args:
+            tree: Optional pre-built ConversationTree to use
 
         Returns:
             List of Branch objects representing each path through the conversation
         """
-        tree = self.build_tree()
+        if tree is None:
+            tree = self.build_tree()
+
         if not tree.root:
             return []
 
