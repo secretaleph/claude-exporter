@@ -76,38 +76,25 @@ class TreeBuilder:
         """
         Build parent-child relationships between messages.
 
-        Logic:
-        - A message at index N is a child of a message at index N-1
-        - If multiple messages exist at index N, they are all children of the parent at N-1
-        - The parent is the message at N-1 that was created most recently before this message
+        The API data already contains parent_uuid values from the nested structure.
+        This method preserves those relationships and builds the children arrays.
+
+        Note: We used to reconstruct parent relationships from the index field,
+        but this caused issues when indices had gaps, resulting in orphaned messages.
+        Now we trust the API's parent_uuid values.
         """
+        # Build a UUID -> Message lookup
+        msg_by_uuid = {msg.uuid: msg for msg in sorted_messages}
+
+        # Build children arrays based on existing parent_uuid values
         for msg in sorted_messages:
-            if msg.index == 0:
-                # Root message has no parent
-                msg.parent_uuid = None
-                continue
+            if msg.parent_uuid:
+                parent = msg_by_uuid.get(msg.parent_uuid)
+                if parent:
+                    parent.children.append(msg)
 
-            # Find parent at previous index
-            parent_index = msg.index - 1
-            parent_candidates = messages_by_index.get(parent_index, [])
-
-            if not parent_candidates:
-                # No parent found (shouldn't happen in well-formed conversations)
-                msg.parent_uuid = None
-                continue
-
-            # Parent is the most recent message at parent_index that was created before this message
-            valid_parents = [p for p in parent_candidates if p.created_at < msg.created_at]
-
-            if valid_parents:
-                parent = max(valid_parents, key=lambda p: p.created_at)
-                msg.parent_uuid = parent.uuid
-                parent.children.append(msg)
-            else:
-                # Fallback to first parent candidate
-                parent = parent_candidates[0]
-                msg.parent_uuid = parent.uuid
-                parent.children.append(msg)
+        # Note: parent_uuid values are already set from the API data
+        # We don't need to compute them - they come from the nested structure
 
     def _build_message_node(self, message: Message, visited: set[UUID]) -> MessageNode:
         """

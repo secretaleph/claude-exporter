@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Attachment(BaseModel):
@@ -19,6 +19,9 @@ class Attachment(BaseModel):
 
 class Message(BaseModel):
     """A single message in a conversation."""
+
+    model_config = {"populate_by_name": True}
+
     uuid: UUID
     text: str
     sender: Literal["human", "assistant"]
@@ -33,9 +36,27 @@ class Message(BaseModel):
     model: str | None = None
     thinking: str | None = None
 
-    # For tree building - will be populated during tree construction
-    parent_uuid: UUID | None = None
-    children: list["Message"] = []
+    # Parent relationship - mapped from API's parent_message_uuid field
+    # The API uses a special null UUID (00000000-0000-4000-8000-000000000000) for root messages
+    parent_uuid: UUID | None = Field(None, alias="parent_message_uuid")
+
+    # Children list - will be populated during tree construction
+    # Excluded from serialization to avoid circular references (use parent_uuid instead)
+    children: list["Message"] = Field(default=[], exclude=True)
+
+    @field_validator("parent_uuid", mode="before")
+    @classmethod
+    def convert_null_uuid(cls, v: Any) -> UUID | None:
+        """Convert the API's special null UUID to None."""
+        if v is None:
+            return None
+        # The API uses this special UUID for root messages
+        NULL_UUID = "00000000-0000-4000-8000-000000000000"
+        if isinstance(v, str) and v == NULL_UUID:
+            return None
+        if isinstance(v, UUID) and str(v) == NULL_UUID:
+            return None
+        return v
 
 
 class Conversation(BaseModel):
@@ -62,8 +83,10 @@ class MessageNode(BaseModel):
 class ConversationTree(BaseModel):
     """Tree representation of a conversation showing all branches."""
     conversation: Conversation
-    root: MessageNode | None = None
-    all_messages: list[Message] = []
+    # Exclude root from serialization to avoid circular references/deep recursion
+    # The flat message list with parent_uuid is sufficient for reconstruction
+    root: MessageNode | None = Field(default=None, exclude=True)
+    all_messages: list[Message] = Field(default=[], exclude=True)
     branches: list[list[UUID]] = []  # List of message UUID paths representing branches
     orphaned_chains: list[list[Message]] = []  # Chains of messages not connected to main tree
 
