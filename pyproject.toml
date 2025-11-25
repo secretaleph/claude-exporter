@@ -1,0 +1,26 @@
+[project]
+name = "claude-exporter"
+version = "0.1.0"
+description = "Export Claude.ai conversations with full branch support and formatting preservation"
+readme = "README.md"
+authors = [
+    { name = "Anna Smirnova", email = "anna.smirnova@unil.ch" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27.0",
+    "click>=8.1.7",
+    "rich>=13.7.0",
+    "pydantic>=2.5.0",
+    "browser-cookie3>=0.19.1",
+    "cloudscraper>=1.2.71",
+    "brotli>=1.1.0",
+]
+
+[project.scripts]
+claude-export = "claude_exporter.cli:main"
+claude-investigate = "claude_exporter.investigate:main"
+
+[build-system]
+requires = ["uv_build>=0.8.20,<0.9.0"]
+build-backend = "uv_build"
