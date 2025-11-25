@@ -65,6 +65,7 @@ class ConversationTree(BaseModel):
     root: MessageNode | None = None
     all_messages: list[Message] = []
     branches: list[list[UUID]] = []  # List of message UUID paths representing branches
+    orphaned_chains: list[list[Message]] = []  # Chains of messages not connected to main tree
 
 
 class Branch(BaseModel):

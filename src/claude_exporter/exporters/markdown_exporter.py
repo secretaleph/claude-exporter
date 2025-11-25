@@ -80,6 +80,32 @@ class MarkdownExporter:
         # Render tree with branches
         self._render_tree_node(tree.root, lines, depth=0, branch_path=[])
 
+        # Render orphaned chains if any
+        if tree.orphaned_chains:
+            lines.append("\n\n---\n")
+            lines.append("## Orphaned Message Chains\n")
+            lines.append(f"*{len(tree.orphaned_chains)} disconnected conversation chain(s) found. ")
+            lines.append("These are typically from regenerated or edited messages.*\n")
+
+            for chain_idx, chain in enumerate(tree.orphaned_chains, 1):
+                lines.append(f"\n### Orphaned Chain {chain_idx}")
+                lines.append(f"*{len(chain)} message(s), starting at index {chain[0].index}*\n")
+
+                for msg in chain:
+                    lines.append(f"\n#### {msg.sender.title()}")
+                    if self.include_metadata:
+                        lines.append(f"*Message ID: `{msg.uuid}` | Index: {msg.index}*")
+
+                    for line in msg.text.split("\n"):
+                        lines.append(line)
+
+                    if msg.attachments:
+                        lines.append("\n**Attachments:**")
+                        for att in msg.attachments:
+                            lines.append(f"- 📎 `{att.file_name}` ({att.file_type})")
+
+                    lines.append("")
+
         return "\n".join(lines)
 
     def _render_tree_node(

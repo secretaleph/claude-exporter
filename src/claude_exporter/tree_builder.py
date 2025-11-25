@@ -57,11 +57,15 @@ class TreeBuilder:
         # Extract all branch paths
         branches = self._extract_branches(root_node)
 
+        # Find orphaned message chains
+        orphaned_chains = self._find_orphaned_chains(sorted_messages, root_node)
+
         return ConversationTree(
             conversation=self.conversation,
             root=root_node,
             all_messages=sorted_messages,
-            branches=branches
+            branches=branches,
+            orphaned_chains=orphaned_chains
         )
 
     def _build_parent_child_relationships(
@@ -221,3 +225,96 @@ class TreeBuilder:
                 return idx
 
         return None
+
+    def _find_orphaned_chains(
+        self,
+        all_messages: list[Message],
+        root_node: MessageNode
+    ) -> list[list[Message]]:
+        """
+        Find message chains that are orphaned (not connected to main tree).
+
+        These typically occur when messages are regenerated or edited,
+        leaving old versions in the database but not in the conversation path.
+
+        Args:
+            all_messages: All messages sorted by created_at
+            root_node: Root of the main conversation tree
+
+        Returns:
+            List of orphaned message chains, each chain is a list of messages
+        """
+        # Collect all message UUIDs that are in the main tree
+        messages_in_tree = set()
+
+        def collect_tree_uuids(node: MessageNode) -> None:
+            messages_in_tree.add(node.message.uuid)
+            for child in node.children:
+                collect_tree_uuids(child)
+
+        collect_tree_uuids(root_node)
+
+        # Find messages not in tree
+        orphaned_messages = [m for m in all_messages if m.uuid not in messages_in_tree]
+
+        if not orphaned_messages:
+            return []
+
+        # Build chains from orphaned messages
+        # A chain starts with a message that has no parent or whose parent is also orphaned
+        chains = []
+        processed = set()
+
+        for msg in orphaned_messages:
+            if msg.uuid in processed:
+                continue
+
+            # Find the root of this orphaned chain
+            chain_root = msg
+            while chain_root.parent_uuid:
+                parent = next((m for m in orphaned_messages if m.uuid == chain_root.parent_uuid), None)
+                if parent:
+                    chain_root = parent
+                else:
+                    break
+
+            # Build chain from root
+            if chain_root.uuid not in processed:
+                chain = self._build_orphaned_chain(chain_root, orphaned_messages, processed)
+                if chain:
+                    chains.append(chain)
+
+        return chains
+
+    def _build_orphaned_chain(
+        self,
+        start_message: Message,
+        orphaned_messages: list[Message],
+        processed: set[UUID]
+    ) -> list[Message]:
+        """
+        Build a linear chain starting from a message.
+
+        Args:
+            start_message: Starting message of the chain
+            orphaned_messages: All orphaned messages
+            processed: Set of already processed message UUIDs
+
+        Returns:
+            List of messages in the chain
+        """
+        chain = []
+        current = start_message
+
+        while current:
+            if current.uuid in processed:
+                break
+
+            chain.append(current)
+            processed.add(current.uuid)
+
+            # Find next message in chain (first child)
+            children = [m for m in orphaned_messages if m.parent_uuid == current.uuid]
+            current = children[0] if children else None
+
+        return chain
